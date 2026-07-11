@@ -168,7 +168,8 @@ public class LoginForm extends JFrame {
     private void authenticate() {
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword()).trim();
-        String role = ((String) roleCombo.getSelectedItem()).trim();
+        String role = ((String) roleCombo.getSelectedItem()).trim().toLowerCase();
+
 
         if (username.isEmpty() || password.isEmpty() || role.isEmpty()) {
             showError("Semua field harus diisi.");
@@ -194,11 +195,25 @@ public class LoginForm extends JFrame {
             return;
         }
 
-        if (!user.getPassword().equals(password) || !user.getRole().equalsIgnoreCase(role)) {
-            activityLogDAO.insert(new ActivityLog(username, "Login gagal", "Password atau role tidak cocok. Role yang dipilih: " + role));
+        String dbRole = user.getRole() == null ? "" : user.getRole().trim().toLowerCase();
+        boolean passwordOk = user.getPassword() != null && user.getPassword().trim().equals(password);
+        boolean roleOk = dbRole.equals(role);
+
+        if (!passwordOk || !roleOk) {
+            if (!passwordOk && !roleOk) {
+                activityLogDAO.insert(new ActivityLog(username, "Login gagal",
+                        "Password dan role tidak cocok. Role dipilih: " + role + ", role DB: " + dbRole));
+            } else if (!passwordOk) {
+                activityLogDAO.insert(new ActivityLog(username, "Login gagal",
+                        "Password tidak cocok. Role dipilih: " + role + ", role DB: " + dbRole));
+            } else {
+                activityLogDAO.insert(new ActivityLog(username, "Login gagal",
+                        "Role tidak cocok. Role dipilih: " + role + ", role DB: " + dbRole));
+            }
             showError("Username, password, atau role tidak cocok.");
             return;
         }
+
 
         activityLogDAO.insert(new ActivityLog(username, "Login berhasil", "User berhasil login dengan role: " + role));
         SwingUtilities.invokeLater(() -> {

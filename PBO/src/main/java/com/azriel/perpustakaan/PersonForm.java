@@ -123,10 +123,14 @@ public class PersonForm extends JFrame {
         menuPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
 
         for (int i = 0; i < MENU_LABELS.length; i++) {
-            menuPanel.add(createMenuButton(MENU_LABELS[i], MENU_ICONS[i]));
+            String key = MENU_KEYS[i];
+            if (canAccessMenu(key)) {
+                menuPanel.add(createMenuButton(MENU_LABELS[i], MENU_ICONS[i]));
+            }
         }
 
         menuPanel.add(Box.createVerticalGlue());
+
         // profile panel will sit above logout
         JPanel profilePanel = createProfilePanel();
 
@@ -206,7 +210,7 @@ public class PersonForm extends JFrame {
         JPanel contentPanel = new JPanel(contentCardLayout);
         contentPanel.setBackground(BACKGROUND_COLOR);
 
-        // Create content panels for each menu
+        // Create content panels for each menu (permission is enforced at access time)
         for (int i = 0; i < MENU_KEYS.length; i++) {
             String key = MENU_KEYS[i];
             JPanel card;
@@ -233,10 +237,18 @@ public class PersonForm extends JFrame {
         // Add profile edit panel
         contentPanel.add(createEditProfilePanel(), EDIT_PROFILE_KEY);
 
-        // show default placeholder
-        contentCardLayout.show(contentPanel, MENU_KEYS[0]);
+        // show default accessible menu for this role
+        String defaultKey = MENU_KEYS[0];
+        for (String key : MENU_KEYS) {
+            if (canAccessMenu(key)) {
+                defaultKey = key;
+                break;
+            }
+        }
+        contentCardLayout.show(contentPanel, defaultKey);
 
         return contentPanel;
+
     }
 
     private JPanel createManagementAnggotaPanel() {
@@ -1808,6 +1820,24 @@ public class PersonForm extends JFrame {
         return panel;
     }
 
+    private boolean canAccessMenu(String menuKey) {
+        String role = currentUser == null || currentUser.getRole() == null ? "" : currentUser.getRole().trim().toLowerCase();
+        switch (menuKey) {
+            case "user":
+            case "log":
+                return "admin".equals(role) || "manager".equals(role);
+            case "anggota":
+            case "buku":
+            case "peminjaman":
+            case "pengembalian":
+                return "staff".equals(role) || "manager".equals(role);
+            case "laporan":
+                return "admin".equals(role) || "staff".equals(role) || "manager".equals(role);
+            default:
+                return true;
+        }
+    }
+
     private void handleMenuClick(String menu) {
         int idx = -1;
         for (int i = 0; i < MENU_LABELS.length; i++) {
@@ -1817,11 +1847,20 @@ public class PersonForm extends JFrame {
             }
         }
         if (idx >= 0 && contentCardLayout != null && mainContentPanel != null) {
-            contentCardLayout.show(mainContentPanel, MENU_KEYS[idx]);
+            String key = MENU_KEYS[idx];
+            if (!canAccessMenu(key)) {
+                JOptionPane.showMessageDialog(this,
+                        "Akses ditolak. Role Anda tidak memiliki izin untuk membuka: " + menu,
+                        "Akses ditolak",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            contentCardLayout.show(mainContentPanel, key);
         } else {
             System.out.println("Menu clicked: " + menu);
         }
     }
+
 
     private JPanel createProfilePanel() {
         JPanel panel = new JPanel(new BorderLayout());
